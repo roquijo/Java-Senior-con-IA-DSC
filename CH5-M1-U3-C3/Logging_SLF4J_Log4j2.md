@@ -176,18 +176,26 @@ El archivo `log4j2.xml` debe ubicarse en:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="WARN">
+<Configuration>
+
+    <Properties>
+        <Property name="LOG_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n
+        </Property>
+    </Properties>
+
     <Appenders>
-        <!-- Configuración de appenders (destinos de log) -->
+        <Console name="Console">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+        </Console>
     </Appenders>
-    
+
     <Loggers>
-        <!-- Configuración de loggers (categorías) -->
+        <Root level="ERROR">
+            <AppenderRef ref="Console"/>
+        </Root>
     </Loggers>
-    
-    <Root level="INFO">
-        <!-- Logger raíz -->
-    </Root>
+
 </Configuration>
 ```
 
