@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    
+    <!-- 1. PROPERTIES: Variables reutilizables -->
+    <Properties>
+        <!-- Patrón de formato para los logs -->
+        <Property name="LOG_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} [%X{requestId}] - %msg%n
+        </Property>
+        
+        <!-- Carpeta donde se guardan los logs -->
+        <Property name="LOG_PATH">logs</Property>
+    </Properties>
+
+    <!-- 2. APPENDERS: Dónde se escriben los logs -->
+    <Appenders>
+        
+        <!-- Appender para consola -->
+        <Console name="Console">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+        </Console>
+
+        <!-- Appender para archivo principal con rotación -->
+        <RollingFile name="ApplicationFile"
+                     fileName="${LOG_PATH}/aplicacion.log"
+                     filePattern="${LOG_PATH}/aplicacion-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <!-- Crea archivo nuevo cada día -->
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <!-- O cuando supera 10MB -->
+                <SizeBasedTriggeringPolicy size="10MB"/>
+            </Policies>
+            <!-- Mantiene máximo 10 archivos -->
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+
+        <!-- Appender solo para errores (ERROR y FATAL) -->
+        <RollingFile name="ErrorFile"
+                     fileName="${LOG_PATH}/errores.log"
+                     filePattern="${LOG_PATH}/errores-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <!-- Solo acepta ERROR y FATAL -->
+            <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="10MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+    </Appenders>
+
+    <!-- 3. LOGGERS: Qué clases pueden escribir logs -->
+    <Loggers>
+        
+        <!-- Logger específico para el paquete de autenticación -->
+        <Logger name="org.example.autenticacion" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="ApplicationFile"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+
+        <!-- Root Logger: Para todas las demás clases -->
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="ApplicationFile"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Root>
+    </Loggers>
+
+</Configuration>
