@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+
+    <Properties>
+        <Property name="LOG_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n
+        </Property>
+        <Property name="LOG_PATH">
+            logs
+        </Property>
+        <!-- Fecha inyectada al arranque -->
+        <Property name="LOG_DATE">${sys:logDate}</Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="Console">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+        </Console>
+
+        <RollingFile name="prueba"
+                     fileName="prueba/prueba-${LOG_DATE}.log"
+                     filePattern="${LOG_PATH}/prueba-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="1KB"/>
+            </Policies>
+        </RollingFile>
+
+        <!-- Appender para el módulo Calculadora -->
+        <RollingFile name="CalculadoraFile"
+                     fileName="logsCalculadora/calculadora-${LOG_DATE}.log"
+                     filePattern="logsCalculadora/calculadora-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="1MB"/>
+            </Policies>
+        </RollingFile>
+
+        <!-- Appender para el módulo Estudiante -->
+        <RollingFile name="EstudianteFile"
+                     fileName="logsEstudiantes/estudiante-${LOG_DATE}.log"
+                     filePattern="logsEstudiantes/estudiante-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="1MB"/>
+            </Policies>
+        </RollingFile>
+
+    </Appenders>
+
+    <Loggers>
+        <!-- Logger específico para el módulo Calculadora -->
+        <Logger name="org.example.Calculadora" level="TRACE" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="CalculadoraFile"/>
+        </Logger>
+
+        <!-- Logger específico para el módulo Estudiante -->
+        <Logger name="org.example.Estudiante" level="TRACE" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="EstudianteFile"/>
+        </Logger>
+
+        <Root level="TRACE">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="prueba"/>
+        </Root>
+    </Loggers>
+
+</Configuration>

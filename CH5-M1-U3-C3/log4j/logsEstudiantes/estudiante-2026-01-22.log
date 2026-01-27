@@ -1,0 +1,10 @@
+2026-01-22 21:43:04.596 [main] INFO  org.example.Estudiante - Creando nuevo estudiante: Juan Pérez de 20 años
+2026-01-22 21:43:04.596 [main] DEBUG org.example.Estudiante - Estudiante iniciando actividades
+2026-01-22 21:43:04.597 [main] INFO  org.example.Estudiante - Agregando calificación 8.5 para el estudiante Juan Pérez
+2026-01-22 21:43:04.597 [main] INFO  org.example.Estudiante - Agregando calificación 9.0 para el estudiante Juan Pérez
+2026-01-22 21:43:04.597 [main] INFO  org.example.Estudiante - Agregando calificación 7.5 para el estudiante Juan Pérez
+2026-01-22 21:43:04.597 [main] INFO  org.example.Estudiante - Calculando promedio para el estudiante Juan Pérez
+2026-01-22 21:43:04.597 [main] INFO  org.example.Estudiante - Promedio calculado para Juan Pérez: 8.333333333333334
+2026-01-22 21:43:04.598 [main] DEBUG org.example.Estudiante - Mostrando información del estudiante
+2026-01-22 21:43:04.598 [main] INFO  org.example.Estudiante - Estudiante: Juan Pérez, Edad: 20, Promedio: 8.333333333333334
+2026-01-22 21:43:04.598 [main] DEBUG org.example.Estudiante - Estudiante finalizando actividades

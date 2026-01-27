@@ -1,0 +1,10 @@
+2026-01-22 21:42:28.761 [main] INFO  org.example.Main - Iniciando módulo Calculadora
+2026-01-22 21:42:28.800 [main] INFO  org.example.Main - Módulo Calculadora finalizado
+
+2026-01-22 21:42:28.800 [main] INFO  org.example.Main - Iniciando módulo Estudiante
+2026-01-22 21:42:28.828 [main] INFO  org.example.Main - Módulo Estudiante finalizado
+2026-01-22 21:43:04.580 [main] INFO  org.example.Main - Iniciando módulo Calculadora
+2026-01-22 21:43:04.595 [main] INFO  org.example.Main - Módulo Calculadora finalizado
+
+2026-01-22 21:43:04.595 [main] INFO  org.example.Main - Iniciando módulo Estudiante
+2026-01-22 21:43:04.598 [main] INFO  org.example.Main - Módulo Estudiante finalizado
