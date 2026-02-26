@@ -7,11 +7,10 @@ import java.util.List;
 
 /**
  * Procesamiento de pedidos escrito ÚNICAMENTE en estilo IMPERATIVO (bucles, variables mutables).
- * En clase (2 h) se resuelve cada método de forma funcional con Streams, usando la guía.
  */
 public class ProcesamientoPedidosService {
 
-    /** Ejercicio 1: Lista de pedidos con importe mayor al umbral. → filter + toList */
+    /** Ejercicio 1: Lista de pedidos con importe mayor al umbral. */
     public List<Pedido> pedidosConImporteMayorA(List<Pedido> pedidos, double umbral) {
         List<Pedido> resultado = new ArrayList<>();
         for (Pedido p : pedidos) {
@@ -22,7 +21,7 @@ public class ProcesamientoPedidosService {
         return resultado;
     }
 
-    /** Ejercicio 2: Lista de nombres de clientes sin repetir. → map + distinct + toList */
+    /** Ejercicio 2: Lista de nombres de clientes sin repetir. */
     public List<String> clientesUnicos(List<Pedido> pedidos) {
         List<String> nombres = new ArrayList<>();
         for (Pedido p : pedidos) {
@@ -34,7 +33,7 @@ public class ProcesamientoPedidosService {
         return nombres;
     }
 
-    /** Ejercicio 3: Total de importe de todos los pedidos. → map + reduce */
+    /** Ejercicio 3: Total de importe de todos los pedidos. */
     public double totalImporte(List<Pedido> pedidos) {
         double total = 0;
         for (Pedido p : pedidos) {
@@ -43,7 +42,7 @@ public class ProcesamientoPedidosService {
         return total;
     }
 
-    /** Ejercicio 4: Solo pedidos PAGADOS, ordenados por importe desc, los 5 primeros. → filter + sorted + limit + toList */
+    /** Ejercicio 4: Solo pedidos PAGADOS, ordenados por importe desc, los 5 primeros. */
     public List<Pedido> top5PagadosPorImporteDesc(List<Pedido> pedidos) {
         List<Pedido> pagados = new ArrayList<>();
         for (Pedido p : pedidos) {
@@ -68,7 +67,7 @@ public class ProcesamientoPedidosService {
         return resultado;
     }
 
-    /** Ejercicio 5: Cantidad de pedidos pagados. → filter + count */
+    /** Ejercicio 5: Cantidad de pedidos pagados. */
     public long cantidadPedidosPagados(List<Pedido> pedidos) {
         long count = 0;
         for (Pedido p : pedidos) {
@@ -79,7 +78,7 @@ public class ProcesamientoPedidosService {
         return count;
     }
 
-    /** Ejercicio 6: ¿Hay algún pedido con importe mayor al umbral? → anyMatch */
+    /** Ejercicio 6: ¿Hay algún pedido con importe mayor al umbral? */
     public boolean hayPedidoConImporteMayorA(List<Pedido> pedidos, double umbral) {
         for (Pedido p : pedidos) {
             if (p.getImporte() > umbral) {
@@ -89,7 +88,7 @@ public class ProcesamientoPedidosService {
         return false;
     }
 
-    /** Ejercicio 7: Primer pedido de un cliente dado (o null). → filter + findFirst */
+    /** Ejercicio 7: Primer pedido de un cliente dado (o null). */
     public Pedido primerPedidoDeCliente(List<Pedido> pedidos, String cliente) {
         for (Pedido p : pedidos) {
             if (cliente.equals(p.getCliente())) {
@@ -99,7 +98,7 @@ public class ProcesamientoPedidosService {
         return null;
     }
 
-    /** Ejercicio 8: ¿Todos los pedidos están pagados? → allMatch */
+    /** Ejercicio 8: ¿Todos los pedidos están pagados? */
     public boolean todosSonPagados(List<Pedido> pedidos) {
         for (Pedido p : pedidos) {
             if (!"PAGADO".equals(p.getEstado())) {
@@ -109,7 +108,7 @@ public class ProcesamientoPedidosService {
         return true;
     }
 
-    /** Ejercicio 9: ¿Ningún pedido está cancelado? → noneMatch */
+    /** Ejercicio 9: ¿Ningún pedido está cancelado? */
     public boolean ningunoCancelado(List<Pedido> pedidos) {
         for (Pedido p : pedidos) {
             if ("CANCELADO".equals(p.getEstado())) {
@@ -119,7 +118,7 @@ public class ProcesamientoPedidosService {
         return true;
     }
 
-    /** Ejercicio 10: Pedidos ordenados por nombre de cliente (alfabético). → sorted + toList */
+    /** Ejercicio 10: Pedidos ordenados por nombre de cliente (alfabético). */
     public List<Pedido> pedidosOrdenadosPorCliente(List<Pedido> pedidos) {
         List<Pedido> copia = new ArrayList<>(pedidos);
         copia.sort((a, b) -> a.getCliente().compareTo(b.getCliente()));

@@ -11,7 +11,7 @@ import java.util.Set;
  */
 public class EjemplosImperativosAdicionales {
 
-    /** Ejercicio 11: Filtrar números pares. → filter + toList */
+    /** Ejercicio 11: Filtrar números pares. */
     public static List<Integer> soloPares(List<Integer> numeros) {
         List<Integer> resultado = new ArrayList<>();
         for (Integer n : numeros) {
@@ -22,7 +22,7 @@ public class EjemplosImperativosAdicionales {
         return resultado;
     }
 
-    /** Ejercicio 12: Transformar cada número en su cuadrado. → map + toList */
+    /** Ejercicio 12: Transformar cada número en su cuadrado. */
     public static List<Integer> cuadrados(List<Integer> numeros) {
         List<Integer> resultado = new ArrayList<>();
         for (Integer n : numeros) {
@@ -31,7 +31,7 @@ public class EjemplosImperativosAdicionales {
         return resultado;
     }
 
-    /** Ejercicio 13: Suma de todos los números. → reduce */
+    /** Ejercicio 13: Suma de todos los números. */
     public static int suma(List<Integer> numeros) {
         int total = 0;
         for (Integer n : numeros) {
@@ -40,7 +40,7 @@ public class EjemplosImperativosAdicionales {
         return total;
     }
 
-    /** Ejercicio 14: Nombres en mayúsculas. → map + toList */
+    /** Ejercicio 14: Nombres en mayúsculas. */
     public static List<String> aMayusculas(List<String> nombres) {
         List<String> resultado = new ArrayList<>();
         for (String s : nombres) {
@@ -49,7 +49,7 @@ public class EjemplosImperativosAdicionales {
         return resultado;
     }
 
-    /** Ejercicio 15: Contar cuántos elementos tienen longitud > 3. → filter + count */
+    /** Ejercicio 15: Contar cuántos elementos tienen longitud > 3. */
     public static long contarLargos(List<String> palabras) {
         long count = 0;
         for (String s : palabras) {
@@ -60,7 +60,7 @@ public class EjemplosImperativosAdicionales {
         return count;
     }
 
-    /** Ejercicio 16: Conjunto de palabras (sin duplicados). → collect(Collectors.toSet()) */
+    /** Ejercicio 16: Conjunto de palabras (sin duplicados). */
     public static Set<String> palabrasUnicas(List<String> palabras) {
         Set<String> resultado = new HashSet<>();
         for (String s : palabras) {
@@ -69,7 +69,7 @@ public class EjemplosImperativosAdicionales {
         return resultado;
     }
 
-    /** Ejercicio 17: Palabras ordenadas por longitud, las 2 primeras. → sorted + limit + toList */
+    /** Ejercicio 17: Palabras ordenadas por longitud, las 2 primeras. */
     public static List<String> dosPrimerasPorLongitud(List<String> palabras) {
         List<String> copia = new ArrayList<>(palabras);
         copia.sort((a, b) -> Integer.compare(a.length(), b.length()));
@@ -81,7 +81,7 @@ public class EjemplosImperativosAdicionales {
         return resultado;
     }
 
-    /** Ejercicio 18: Saltar los 2 primeros números y tomar los siguientes 2. → skip + limit + toList */
+    /** Ejercicio 18: Saltar los 2 primeros números y tomar los siguientes 2. */
     public static List<Integer> saltar2Tomar2(List<Integer> numeros) {
         List<Integer> resultado = new ArrayList<>();
         int tomados = 0;
@@ -92,7 +92,7 @@ public class EjemplosImperativosAdicionales {
         return resultado;
     }
 
-    /** Ejercicio 19: ¿Hay algún número negativo? → anyMatch */
+    /** Ejercicio 19: ¿Hay algún número negativo? */
     public static boolean hayAlgunNegativo(List<Integer> numeros) {
         for (Integer n : numeros) {
             if (n < 0) {
@@ -102,7 +102,7 @@ public class EjemplosImperativosAdicionales {
         return false;
     }
 
-    /** Ejercicio 20: ¿Todos los números son positivos? → allMatch */
+    /** Ejercicio 20: ¿Todos los números son positivos? */
     public static boolean todosPositivos(List<Integer> numeros) {
         for (Integer n : numeros) {
             if (n <= 0) {
@@ -112,7 +112,7 @@ public class EjemplosImperativosAdicionales {
         return true;
     }
 
-    /** Ejercicio 21: Primer número mayor que un umbral (o null). → filter + findFirst */
+    /** Ejercicio 21: Primer número mayor que un umbral (o null). */
     public static Integer primerMayorQue(List<Integer> numeros, int umbral) {
         for (Integer n : numeros) {
             if (n > umbral) {
@@ -122,7 +122,7 @@ public class EjemplosImperativosAdicionales {
         return null;
     }
 
-    /** Ejercicio 22: Producto de todos los números. → reduce */
+    /** Ejercicio 22: Producto de todos los números. */
     public static int producto(List<Integer> numeros) {
         int prod = 1;
         for (Integer n : numeros) {
@@ -131,7 +131,7 @@ public class EjemplosImperativosAdicionales {
         return prod;
     }
 
-    /** Ejercicio 23: Longitudes de cada palabra. → map + toList */
+    /** Ejercicio 23: Longitudes de cada palabra. */
     public static List<Integer> longitudes(List<String> palabras) {
         List<Integer> resultado = new ArrayList<>();
         for (String s : palabras) {
@@ -140,7 +140,7 @@ public class EjemplosImperativosAdicionales {
         return resultado;
     }
 
-    /** Ejercicio 24: ¿Ninguna palabra está vacía? → noneMatch */
+    /** Ejercicio 24: ¿Ninguna palabra está vacía? */
     public static boolean ningunaVacia(List<String> palabras) {
         for (String s : palabras) {
             if (s == null || s.isEmpty()) {

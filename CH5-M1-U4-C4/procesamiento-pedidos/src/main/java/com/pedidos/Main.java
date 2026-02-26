@@ -9,7 +9,6 @@ import java.util.Set;
 
 /**
  * Ejecuta todos los ejemplos en estilo IMPERATIVO.
- * En clase (2 h) se resuelve cada uno de forma funcional con Streams; este Main sirve para ver el resultado esperado.
  */
 public class Main {
 
@@ -36,18 +35,17 @@ public class Main {
         System.out.println("Ej 11. Solo pares: " + EjemplosImperativosAdicionales.soloPares(nums));
         System.out.println("Ej 12. Cuadrados: " + EjemplosImperativosAdicionales.cuadrados(nums));
         System.out.println("Ej 13. Suma: " + EjemplosImperativosAdicionales.suma(nums));
-        System.out.println("Ej 18. Saltar 2, tomar 2: " + EjemplosImperativosAdicionales.saltar2Tomar2(nums));
-        System.out.println("Ej 19. ¿Hay negativo? " + EjemplosImperativosAdicionales.hayAlgunNegativo(nums));
-        System.out.println("Ej 20. ¿Todos positivos? " + EjemplosImperativosAdicionales.todosPositivos(nums));
-        System.out.println("Ej 21. Primer > 3: " + EjemplosImperativosAdicionales.primerMayorQue(nums, 3));
-        System.out.println("Ej 22. Producto: " + EjemplosImperativosAdicionales.producto(List.of(1, 2, 3, 4)));
-
         List<String> palabras = List.of("sol", "agua", "mesa", "luz", "agua");
         System.out.println("Ej 14. Mayúsculas: " + EjemplosImperativosAdicionales.aMayusculas(palabras));
         System.out.println("Ej 15. Contar longitud > 3: " + EjemplosImperativosAdicionales.contarLargos(palabras));
         Set<String> unicas = EjemplosImperativosAdicionales.palabrasUnicas(palabras);
         System.out.println("Ej 16. Palabras únicas (Set): " + unicas);
         System.out.println("Ej 17. Dos primeras por longitud: " + EjemplosImperativosAdicionales.dosPrimerasPorLongitud(palabras));
+        System.out.println("Ej 18. Saltar 2, tomar 2: " + EjemplosImperativosAdicionales.saltar2Tomar2(nums));
+        System.out.println("Ej 19. ¿Hay negativo? " + EjemplosImperativosAdicionales.hayAlgunNegativo(nums));
+        System.out.println("Ej 20. ¿Todos positivos? " + EjemplosImperativosAdicionales.todosPositivos(nums));
+        System.out.println("Ej 21. Primer > 3: " + EjemplosImperativosAdicionales.primerMayorQue(nums, 3));
+        System.out.println("Ej 22. Producto: " + EjemplosImperativosAdicionales.producto(List.of(1, 2, 3, 4)));
         System.out.println("Ej 23. Longitudes: " + EjemplosImperativosAdicionales.longitudes(palabras));
         System.out.println("Ej 24. ¿Ninguna vacía? " + EjemplosImperativosAdicionales.ningunaVacia(palabras));
     }
