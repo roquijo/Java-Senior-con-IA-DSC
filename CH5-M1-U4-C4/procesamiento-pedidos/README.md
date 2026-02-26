@@ -42,7 +42,6 @@ Todo el código está escrito **solo en estilo imperativo** (bucles `for`, `Arra
 | 23 | longitudes | map + toList |
 | 24 | ningunaVacia | noneMatch |
 
-
 Salida: resultados de todos los métodos imperativos. Tras reescribir cada método con Streams, el resultado debe coincidir.
 
 ## Estructura
