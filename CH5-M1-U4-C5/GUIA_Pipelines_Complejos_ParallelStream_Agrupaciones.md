@@ -1,6 +1,6 @@
-# Guía: Pipelines complejos, Streams paralelos y agrupaciones avanzadas
+# Guía detallada: Pipelines complejos, Streams paralelos y agrupaciones avanzadas
 
-**Carpeta:** CH5-M1-U4-C5
+**Carpeta:** CH5-M1-U4-C5  
 
 ---
 
@@ -8,215 +8,538 @@
 
 - Implementar **pipelines funcionales más complejos** (agrupaciones, particiones, estadísticas).
 - Ejecutar Streams de forma **paralela** para mejorar el rendimiento cuando sea adecuado.
-- Aplicar **agrupación y estadísticas avanzadas** sobre colecciones (groupingBy, partitioningBy, summarizingInt).
+- Aplicar **agrupación y estadísticas avanzadas** sobre colecciones.
 
 ---
 
 ## Contenidos
 
-1. Agrupaciones y reducciones: `Collectors.groupingBy()`, `partitioningBy()`, `summarizingInt()`.
+1. Agrupaciones y reducciones: `groupingBy()`, `partitioningBy()`, `summarizingInt()` (parámetros, ejemplos paso a paso).
 2. Transformaciones en cascada con múltiples `map` y `filter`.
 3. Introducción a `parallelStream()`: ventajas, riesgos, cuándo utilizarlo.
 4. Evaluación del costo con `System.nanoTime()` y comparativas.
-5. Uso de herramientas para paralelizar y simplificar pipelines complejos.
-6. Ejercicio práctico: base de datos simulada de ventas (total por producto, cliente con mayor facturación, productos por categoría).
+5. Sugerencias de herramientas para paralelizar y simplificar pipelines.
+6. Ejercicio práctico: base de datos simulada de ventas.
 
 ---
 
 # Parte 1. Agrupaciones y reducciones avanzadas
 
+Antes de entrar en código, vamos a ver la **idea con plastilina**.
+
+---
+
+## La idea con plastilina: ¿qué es “agrupar”?
+
+Imagina que tienes **muchas bolitas de plastilina** de colores (rojo, azul, verde) y quieres:
+
+- **Solo separarlas por color:** pones una caja por color y en cada caja guardas la **lista** de bolitas de ese color.  
+  Resultado: *Map&lt;Color, Lista de bolitas&gt;*.
+
+- **Contar cuántas bolitas hay de cada color:** misma separación, pero en vez de guardar la lista guardas un **número** (cuántas hay).  
+  Resultado: *Map&lt;Color, Número&gt;*.
+
+- **Sumar el “peso” de las bolitas de cada color:** misma separación, pero en cada caja guardas la **suma** del peso de las bolitas de ese color.  
+  Resultado: *Map&lt;Color, Suma&gt;*.
+
+En Java, esa “separación por cajas” se hace con **collect** y unos ayudantes llamados **Collectors**. Los más útiles para agrupar son:
+
+- **groupingBy:** “agrupa por esta regla y mete cada grupo en una caja”.
+- **partitioningBy:** “solo hay dos cajas: la de los que cumplen la condición y la de los que no”.
+- **summarizingInt / summarizingDouble:** “en una sola pasada dame cuenta, suma, mínimo, máximo y media”.
+
+A partir de aquí vemos **cada función con detalle**: qué parámetros recibe, qué devuelve y ejemplos con datos pequeños para que puedas seguir el flujo.
+
+---
+
 ## 1.1 Collectors.groupingBy()
 
-**Qué hace:** Agrupa los elementos del stream por una **clave** obtenida con una función clasificadora. El resultado es un `Map<K, List<T>>`.
+### ¿Para qué sirve?
 
-**Formas:**
+**groupingBy** sirve para **repartir todos los elementos del stream en grupos**. Cada grupo tiene una **clave** (por ejemplo: nombre de cliente, categoría, producto). Dentro de cada grupo puedes guardar una lista de elementos, o aplicar otra operación (contar, sumar, etc.).
 
-```java
-// Agrupar en listas (valor por defecto)
-Map<String, List<Venta>> porCliente = ventas.stream()
-    .collect(Collectors.groupingBy(Venta::getCliente));
+### Analogía
 
-// Agrupar y aplicar un collector downstream (ej: suma, cuenta)
-Map<String, Double> totalPorCliente = ventas.stream()
-    .collect(Collectors.groupingBy(
-        Venta::getCliente,
-        Collectors.summingDouble(Venta::getTotal)
-    ));
+Tienes muchas **fichas de ventas**. Quieres poner en **un montón** todas las ventas de "Ana", en **otro montón** las de "Luis", en **otro** las de "María", etc. Cada montón está etiquetado con el nombre del cliente. Eso es **agrupar por cliente**. Si en vez de guardar el montón entero solo quieres **cuántas fichas hay** en cada montón, o **cuánto suman** en total, lo indicas con un segundo parámetro (el “downstream collector”).
 
-Map<String, Long> cantidadPorCliente = ventas.stream()
-    .collect(Collectors.groupingBy(Venta::getCliente, Collectors.counting()));
+---
+
+### Firma y parámetros (versión con un solo parámetro)
+
+```text
+Collectors.groupingBy(Function<? super T, ? extends K> classifier)
 ```
 
-**Para qué sirve:** Total por producto, ventas por cliente, pedidos por categoría, etc.
+- **Parámetro único:**
+  - **classifier** (clasificador): es una **Function**. Recibe cada elemento del stream (por ejemplo una `Venta`) y devuelve la **clave** por la que quieres agrupar (por ejemplo el nombre del cliente, tipo `String`).
+  - En código suele ser un **método por referencia**: `Venta::cliente` significa “para cada venta, usa su método `cliente()` como clave”.
+
+- **Qué devuelve:** un **Collector** que, al usarlo dentro de `.collect(...)`, produce un **Map&lt;K, List&lt;T&gt;&gt;**:
+  - **K** = tipo de la clave (ej. `String` si agrupas por cliente).
+  - **List&lt;T&gt;** = lista de elementos que cayeron en ese grupo (ej. lista de `Venta`).
+
+**Resumen:** “Agrupa los elementos del stream usando la clave que devuelve `classifier`; en cada clave guarda una **lista** de elementos.”
+
+---
+
+### Ejemplo paso a paso (solo classifier)
+
+Supongamos esta lista de ventas (simplificada):
+
+| Cliente | Producto | Total |
+|--------|----------|-------|
+| Ana    | Laptop   | 899   |
+| Luis   | Monitor  | 398   |
+| Ana    | Teclado  | 49    |
+| María  | Laptop   | 899   |
+
+Código:
+
+```java
+Map<String, List<Venta>> porCliente = ventas.stream()
+    .collect(Collectors.groupingBy(Venta::cliente));
+```
+
+- **Venta::cliente** es el clasificador: para cada `Venta` devuelve el `String` del cliente.
+- El resultado será algo así:
+  - clave `"Ana"`  → lista con 2 ventas (Laptop 899, Teclado 49)
+  - clave `"Luis"` → lista con 1 venta (Monitor 398)
+  - clave `"María"` → lista con 1 venta (Laptop 899)
+
+**Tipo del resultado:** `Map<String, List<Venta>>`. Así puedes hacer `porCliente.get("Ana")` y obtienes la lista de ventas de Ana.
+
+---
+
+### Firma con dos parámetros (classifier + downstream)
+
+```text
+Collectors.groupingBy(
+    Function<? super T, ? extends K> classifier,
+    Collector<? super T, A, D> downstream
+)
+```
+
+- **Primer parámetro — classifier:** igual que antes; define **por qué clave** agrupar.
+
+- **Segundo parámetro — downstream:** es **otro Collector**. Indica qué hacer con los elementos que caen en **cada grupo**:
+  - Si pones `Collectors.toList()` (por defecto), en cada grupo guardas una lista (como en la versión de un parámetro).
+  - Si pones `Collectors.counting()`, en cada grupo guardas un **Long** (cuántos elementos hay).
+  - Si pones `Collectors.summingDouble(Venta::getTotal)`, en cada grupo guardas un **Double** (la suma de los totales de esas ventas).
+
+- **Qué devuelve:** un Collector que produce un **Map&lt;K, D&gt;** donde **D** es el tipo que produce el downstream (List, Long, Double, etc.).
+
+---
+
+### Ejemplo: total facturado por cliente
+
+Queremos un mapa: *cliente → suma de totales de sus ventas*.
+
+```java
+Map<String, Double> totalPorCliente = ventas.stream()
+    .collect(Collectors.groupingBy(
+        Venta::cliente,                           // 1) Agrupa por cliente
+        Collectors.summingDouble(Venta::getTotal) // 2) En cada grupo: suma los getTotal()
+    ));
+```
+
+- **Parámetro 1 — classifier:** `Venta::cliente`. Agrupa por nombre de cliente.
+- **Parámetro 2 — downstream:** `Collectors.summingDouble(Venta::getTotal)`. Para cada grupo, toma las ventas, aplica `getTotal()` a cada una y **suma** esos valores. El resultado por grupo es un `Double`.
+- **Resultado:** `Map<String, Double>`. Por ejemplo: `"Ana" → 948.0`, `"Luis" → 398.0`, `"María" → 899.0`.
+
+---
+
+### Ejemplo: cantidad de ventas por cliente
+
+Queremos: *cliente → cuántas ventas tiene*.
+
+```java
+Map<String, Long> cantidadPorCliente = ventas.stream()
+    .collect(Collectors.groupingBy(
+        Venta::cliente,      // Agrupa por cliente
+        Collectors.counting() // En cada grupo: cuenta cuántos elementos hay
+    ));
+```
+
+- **downstream:** `Collectors.counting()` no recibe parámetros; solo cuenta los elementos del grupo y devuelve un **Long**.
+- **Resultado:** `Map<String, Long>`. Ejemplo: `"Ana" → 2`, `"Luis" → 1`, `"María" → 1`.
+
+---
+
+### Resumen de groupingBy
+
+| Qué quieres                         | Collector downstream típico                    | Tipo del resultado          |
+|------------------------------------|-----------------------------------------------|-----------------------------|
+| Lista de elementos por clave       | (ninguno; por defecto es toList)              | `Map<K, List<T>>`           |
+| Suma de un campo numérico por clave | `Collectors.summingDouble(Function)`          | `Map<K, Double>`            |
+| Cantidad de elementos por clave    | `Collectors.counting()`                       | `Map<K, Long>`              |
+| Estadísticas por clave             | `Collectors.summarizingInt(...)` (ver más abajo) | `Map<K, IntSummaryStatistics>` |
+
+**Errores frecuentes:**
+
+- Usar `getCliente()` en un **record**: en records los “getters” se llaman como el componente, es decir `cliente()`, no `getCliente()`. Si tu clase tiene método `getCliente()`, entonces sí usarías `Venta::getCliente`.
+- Confundir el orden de los parámetros: primero siempre va el **clasificador** (por qué agrupar), luego el **downstream** (qué hacer con cada grupo).
+
+---
 
 ## 1.2 Collectors.partitioningBy()
 
-**Qué hace:** Divide el stream en **dos grupos** según un `Predicate`: los que cumplen (true) y los que no (false). Resultado: `Map<Boolean, List<T>>`.
+### ¿Para qué sirve?
 
-```java
-Map<Boolean, List<Venta>> pagadasVsPendientes = ventas.stream()
-    .collect(Collectors.partitioningBy(v -> "PAGADO".equals(v.getEstado())));
+**partitioningBy** divide el stream en **solo dos grupos**: los elementos que **cumplen** una condición (clave `true`) y los que **no** la cumplen (clave `false`). Es un caso particular de agrupación cuando la pregunta es de sí/no.
 
-List<Venta> pagadas = pagadasVsPendientes.get(true);
-List<Venta> pendientes = pagadasVsPendientes.get(false);
+### Analogía
+
+Tienes las mismas fichas de ventas y una pregunta: “¿Está pagada?”. Solo hay **dos cajas**: una para “Sí, pagada” y otra para “No, pendiente”. No hay más categorías. Eso es **partitioningBy**.
+
+---
+
+### Firma y parámetros (versión con un solo parámetro)
+
+```text
+Collectors.partitioningBy(Predicate<? super T> predicate)
 ```
 
-**Con downstream:** se puede combinar con counting, summingDouble, etc.
+- **Parámetro único:**
+  - **predicate:** un **Predicate&lt;T&gt;**. Recibe cada elemento del stream y devuelve **true** o **false**. Los que dan `true` van al grupo `true`; los que dan `false`, al grupo `false`.
+  - En código suele ser una lambda: `v -> v.getTotal() > 100` o `v -> "PAGADO".equals(v.getEstado())`.
+
+- **Qué devuelve:** un Collector que produce un **Map&lt;Boolean, List&lt;T&gt;&gt;**:
+  - `map.get(true)` → lista de elementos que cumplieron la condición.
+  - `map.get(false)` → lista de elementos que no la cumplieron.
+
+---
+
+### Ejemplo: ventas mayores o menores que 100
 
 ```java
-Map<Boolean, Long> cantidadPagadasVsPendientes = ventas.stream()
-    .collect(Collectors.partitioningBy(v -> "PAGADO".equals(v.getEstado()), Collectors.counting()));
+Map<Boolean, List<Venta>> grandesVsPequeñas = ventas.stream()
+    .collect(Collectors.partitioningBy(v -> v.getTotal() > 100));
 ```
 
-**Cuándo usar:** Cuando la clasificación es binaria (sí/no, mayor/menor que umbral).
+- **Parámetro:** `v -> v.getTotal() > 100`. Para cada venta, pregunta: “¿el total es mayor que 100?”.
+- **Resultado:** 
+  - `grandesVsPequeñas.get(true)`  → lista de ventas con total &gt; 100
+  - `grandesVsPequeñas.get(false)` → lista de ventas con total ≤ 100
+
+---
+
+### Firma con dos parámetros (predicate + downstream)
+
+```text
+Collectors.partitioningBy(
+    Predicate<? super T> predicate,
+    Collector<? super T, A, D> downstream
+)
+```
+
+- **Primer parámetro:** el **Predicate** que define los dos grupos (true / false).
+- **Segundo parámetro:** un **Collector** que se aplica **a cada uno de los dos grupos** (igual que el downstream de groupingBy). Puede ser `Collectors.counting()`, `Collectors.summingDouble(...)`, etc.
+
+**Resultado:** `Map<Boolean, D>`. Por ejemplo `Map<Boolean, Long>` si usas `counting()`.
+
+---
+
+### Ejemplo: cantidad de ventas mayores vs menores que 100
+
+```java
+Map<Boolean, Long> cantidadGrandesVsPequeñas = ventas.stream()
+    .collect(Collectors.partitioningBy(
+        v -> v.getTotal() > 100,  // 1) ¿Mayor que 100? → true/false
+        Collectors.counting()     // 2) En cada grupo: cuenta cuántos hay
+    ));
+```
+
+- **Resultado:** `cantidadGrandesVsPequeñas.get(true)` = cuántas ventas &gt; 100, `get(false)` = cuántas ≤ 100.
+
+---
+
+### Cuándo usar partitioningBy frente a groupingBy
+
+- Usa **partitioningBy** cuando la clasificación sea **binaria**: sí/no, mayor/menor que un umbral, activo/inactivo, etc. Solo existen dos “cajas”.
+- Usa **groupingBy** cuando haya **varias categorías** (varios clientes, varias categorías de producto, etc.).
+
+---
 
 ## 1.3 summarizingInt() / summarizingDouble() / summarizingLong()
 
-**Qué hace:** Calcula en **un solo paso** varias estadísticas sobre un campo numérico: count, sum, min, max y average. El resultado es un objeto `IntSummaryStatistics` (o Double/Long).
+### ¿Para qué sirve?
+
+Estos collectors calculan **en una sola pasada** varias estadísticas sobre un campo **numérico** del stream: **cuenta** (count), **suma** (sum), **mínimo** (min), **máximo** (max) y **media** (average). Así no tienes que hacer cinco recorridos (uno para count, otro para sum, etc.); el stream se recorre una vez y obtienes un objeto con todos los valores.
+
+### Analogía
+
+En vez de contar las bolitas, luego sumar sus pesos, luego buscar la más ligera y la más pesada por separado, haces **un solo recorrido** y anotas todo a la vez. Al final tienes un “resumen” con los cinco números.
+
+---
+
+### Firma (por ejemplo summarizingInt)
+
+```text
+Collectors.summarizingInt(ToIntFunction<? super T> mapper)
+```
+
+- **Parámetro único:**
+  - **mapper:** un **ToIntFunction&lt;T&gt;**. Recibe cada elemento del stream y devuelve un **int** que es el valor del que quieres las estadísticas. Típicamente un método que devuelve int: `Venta::cantidad` (cantidad de unidades), o un getter que devuelve int.
+
+- **Qué devuelve:** un Collector que produce un **IntSummaryStatistics**, que tiene métodos:
+  - `getCount()`  → número de elementos (long)
+  - `getSum()`    → suma (long)
+  - `getMin()`    → mínimo (int)
+  - `getMax()`    → máximo (int)
+  - `getAverage()` → media (double)
+
+Para **double** y **long** existen `summarizingDouble(ToDoubleFunction)` y `summarizingLong(ToLongFunction)`; devuelven `DoubleSummaryStatistics` y `LongSummaryStatistics` (con los mismos conceptos: count, sum, min, max, average).
+
+---
+
+### Ejemplo: estadísticas de la cantidad de unidades vendidas
 
 ```java
 IntSummaryStatistics stats = ventas.stream()
-    .collect(Collectors.summarizingInt(Venta::getCantidad));
+    .collect(Collectors.summarizingInt(Venta::cantidad));
 
-System.out.println("Cantidad: " + stats.getCount());
-System.out.println("Suma: " + stats.getSum());
-System.out.println("Mín: " + stats.getMin());
-System.out.println("Máx: " + stats.getMax());
-System.out.println("Media: " + stats.getAverage());
+System.out.println("Cantidad de ventas: " + stats.getCount());
+System.out.println("Total unidades vendidas: " + stats.getSum());
+System.out.println("Mínimo en una venta: " + stats.getMin());
+System.out.println("Máximo en una venta: " + stats.getMax());
+System.out.println("Media de unidades por venta: " + stats.getAverage());
 ```
 
-**Por grupo:** se puede combinar con `groupingBy` para tener estadísticas por clave.
+- **Parámetro:** `Venta::cantidad`. Para cada venta toma el campo `cantidad` (int).
+- **Resultado:** un solo objeto con count, sum, min, max y average calculados en una pasada.
+
+---
+
+### Combinado con groupingBy: estadísticas por categoría
+
+Si quieres las **mismas estadísticas pero por grupo** (por ejemplo por categoría de producto), usas **groupingBy** y como downstream pones **summarizingInt** (o Double/Long):
 
 ```java
-Map<String, IntSummaryStatistics> statsPorProducto = ventas.stream()
+Map<String, IntSummaryStatistics> statsPorCategoria = ventas.stream()
     .collect(Collectors.groupingBy(
-        Venta::getProducto,
-        Collectors.summarizingInt(Venta::getCantidad)
+        Venta::categoria,                    // Agrupa por categoría
+        Collectors.summarizingInt(Venta::cantidad)  // En cada grupo: estadísticas de cantidad
     ));
 ```
+
+- **Resultado:** `Map<String, IntSummaryStatistics>`. Para cada categoría tienes su count, sum, min, max y average de `cantidad`.
+
+---
+
+### Resumen de summarizingXxx
+
+| Collector              | Parámetro (tipo)     | Tipo del resultado        |
+|------------------------|----------------------|----------------------------|
+| summarizingInt(...)    | ToIntFunction&lt;T&gt;   | IntSummaryStatistics       |
+| summarizingDouble(...) | ToDoubleFunction&lt;T&gt; | DoubleSummaryStatistics    |
+| summarizingLong(...)   | ToLongFunction&lt;T&gt;   | LongSummaryStatistics      |
+
+**Cuidado:** el campo del que haces el resumen debe ser del tipo correcto (int para summarizingInt, double para summarizingDouble, long para summarizingLong). Si tu campo es `double` (por ejemplo `getTotal()`), usa `summarizingDouble`.
 
 ---
 
 # Parte 2. Transformaciones en cascada (múltiples map y filter)
 
+## Idea con plastilina
+
+Un **pipeline** es como una cadena de filtros y transformaciones. Primero pasas por un **filtro** (solo pasan los que cumplen), luego por **otro filtro**, luego **cambias** cada elemento (map), luego tal vez otro filtro, y al final **recoges** el resultado (toList, sum, etc.). Cada paso recibe lo que salió del anterior. Por eso el **orden** importa: filtrar antes de transformar suele ser más barato porque trabajas con menos elementos.
+
+---
+
 ## 2.1 Encadenar varios filter y map
 
-Un pipeline puede tener **varios** `filter` y **varios** `map` en secuencia. Cada paso reduce o transforma el flujo.
+Puedes poner **varios** `filter` seguidos y **varios** `map` (o `mapToDouble`, etc.). Cada operación se aplica al resultado de la anterior.
 
-**Ejemplo:** Ventas de un cliente, solo pagadas, quedarnos con el total de cada una, sumar y luego los que superan 100.
+### Orden típico recomendado
+
+1. **Origen:** `lista.stream()`.
+2. **Filtros:** uno o más `filter(...)` para reducir la cantidad de elementos.
+3. **Transformaciones:** uno o más `map(...)` para cambiar cada elemento (o extraer un campo).
+4. **Orden / duplicados / límites:** `sorted()`, `distinct()`, `limit(n)`, `skip(n)` si los necesitas.
+5. **Operación final:** `collect(...)`, `toList()`, `sum()`, `count()`, `reduce(...)`, etc.
+
+### Ejemplo detallado
+
+Objetivo: “Del cliente Ana, solo ventas pagadas; de esas, quedarme con el total de cada una; de esos totales, solo los mayores que 100; y sumarlos.”
 
 ```java
 double totalGrandes = ventas.stream()
-    .filter(v -> "Ana".equals(v.getCliente()))
-    .filter(v -> "PAGADO".equals(v.getEstado()))
-    .mapToDouble(Venta::getTotal)
-    .filter(total -> total > 100)
-    .sum();
+    .filter(v -> "Ana".equals(v.cliente()))           // 1) Solo ventas de Ana
+    .filter(v -> "PAGADO".equals(v.getEstado()))      // 2) Solo pagadas (si tienes estado)
+    .mapToDouble(Venta::getTotal)                     // 3) De cada venta, tomar el total (ahora es stream de double)
+    .filter(total -> total > 100)                      // 4) Solo totales > 100
+    .sum();                                           // 5) Sumar
 ```
 
-**Buenas prácticas:**
-- **Orden:** filtrar primero (menos elementos que transformar), luego map. Si un filter puede aplicarse antes de un map costoso, hacerlo.
-- **Legibilidad:** si el pipeline se hace largo, extraer a variables intermedias o a métodos con nombre claro.
+- **Parámetros de filter:** cada `filter` recibe un **Predicate&lt;T&gt;**: una función que devuelve true/false. Solo pasan los que dan true.
+- **Parámetros de mapToDouble:** una **ToDoubleFunction&lt;T&gt;**: de cada venta devuelves un double (aquí `getTotal()`).
+- Después del primer `mapToDouble` el stream es de tipo **DoubleStream**; por eso el siguiente `filter` recibe un `double` (el total).
 
-## 2.2 Map anidados (map sobre resultados de map)
+### Por qué filtrar antes de map
 
-Cuando cada elemento debe transformarse en **varios** valores o en una estructura que a su vez se procesa:
+Si primero filtras, menos elementos pasan al `map`. Si el `map` hace algo costoso, es mejor que se aplique solo a los elementos que ya cumplen el filtro. Por eso: **primero filters, luego maps** cuando sea posible.
+
+---
+
+## 2.2 Varios map y extracción de campos
+
+Cuando quieres **solo un dato** de cada elemento (por ejemplo el nombre del cliente), usas `map` con ese getter. Si después quieres eliminar repetidos, usas `distinct()`.
+
+Ejemplo: “Nombres de clientes que tienen al menos una venta con total mayor que 50, sin repetir.”
 
 ```java
-// Nombres de clientes que tienen al menos una venta > 50
 List<String> clientesConVentaAlta = ventas.stream()
-    .filter(v -> v.getTotal() > 50)
-    .map(Venta::getCliente)
-    .distinct()
+    .filter(v -> v.getTotal() > 50)   // Solo ventas > 50
+    .map(Venta::cliente)              // De cada venta, el nombre del cliente
+    .distinct()                       // Sin repetir nombres
     .toList();
 ```
 
-Para “map y luego aplanar” se usa `flatMap` (tema avanzado); aquí con varios `map` y `filter` en cascada basta para la mayoría de casos.
+- **map(Venta::cliente):** el stream pasa de `Stream<Venta>` a `Stream<String>`. Cada elemento es ya solo el nombre del cliente.
+- **distinct():** elimina duplicados según `equals` del tipo (aquí String).
 
 ---
 
 # Parte 3. parallelStream(): ventajas, riesgos y cuándo usarlo
 
-## 3.1 Qué es parallelStream()
+## 3.1 Qué es parallelStream() — idea con plastilina
 
-`coleccion.parallelStream()` devuelve un stream que puede **repartir el trabajo** entre varios hilos (cores). La API es la misma que con `stream()`; solo cambia el origen.
+Imagina que tienes que **contar** miles de bolitas. Puedes hacerlo tú solo (recorrer todas) o repartir las bolitas entre **varios amigos**: cada uno cuenta su montón y al final sumas los resultados. **parallelStream()** hace algo así: reparte el trabajo entre varios **hilos** (workers) para que se ejecute en paralelo. La API es la misma que `stream()`; solo cambias `stream()` por `parallelStream()`.
+
+---
+
+## 3.2 Cómo se usa
+
+En vez de:
 
 ```java
-long count = ventas.parallelStream()
-    .filter(v -> v.getTotal() > 100)
-    .count();
+ventas.stream().filter(...).count()
 ```
 
-## 3.2 Ventajas
+escribes:
 
-- **Rendimiento:** en colecciones **grandes** y operaciones **costosas** (cálculos, I/O simulado), el tiempo puede reducirse al repartir la carga.
-- **Sin código de hilos:** no hace falta crear `ExecutorService` ni gestionar `Future`; el framework reparte las tareas.
+```java
+ventas.parallelStream().filter(...).count()
+```
 
-## 3.3 Riesgos y requisitos
+Los parámetros de `filter`, `map`, etc. son **exactamente los mismos**. Solo cambia que el trabajo puede repartirse entre varios núcleos de la CPU.
 
-- **Estado compartido:** no modificar variables externas dentro de lambdas (no usar acumuladores mutables compartidos). Las operaciones deben ser **sin efectos secundarios** o thread-safe.
-- **Orden:** el orden de procesamiento no está garantizado; si necesitas orden determinista, no uses paralelo para eso o ordena al final.
-- **Overhead:** crear y coordinar hilos tiene coste. En listas **pequeñas** (pocos miles de elementos) y operaciones **baratas**, `parallelStream()` puede ser **más lento** que `stream()`.
-- **Estructuras no thread-safe:** no modificar la colección fuente ni estructuras compartidas desde dentro del pipeline.
+---
 
-## 3.4 Cuándo utilizarlo
+## 3.3 Ventajas
 
-| Usar parallelStream() | Evitar parallelStream() |
-|------------------------|---------------------------|
-| Muchos elementos (decenas o cientos de miles) | Pocos elementos (cientos, pocos miles) |
-| Operación por elemento costosa | Operaciones muy ligeras (filter por campo, map simple) |
-| Sin estado compartido mutable | Acumuladores externos, modificar listas/mapas |
-| Tareas independientes (embarazosamente paralelas) | Orden estricto o dependencias entre elementos |
+- Con **muchos datos** y operaciones **algo costosas**, el tiempo total puede **bajar** porque varios núcleos trabajan a la vez.
+- No tienes que crear hilos a mano ni usar `ExecutorService`; el framework se encarga de repartir las tareas.
 
-**Regla práctica:** medir con `System.nanoTime()` (o JMH) antes y después; si no hay mejora clara, quedarse con `stream()`.
+---
+
+## 3.4 Riesgos y qué no hacer
+
+- **No modificar variables “de fuera” dentro del pipeline.**  
+  Ejemplo de error:
+  ```java
+  int[] total = {0};
+  ventas.parallelStream().forEach(v -> total[0] += v.getTotal()); // MAL: varios hilos escribiendo total[0]
+  ```
+  Varios hilos leyendo y escribiendo la misma variable puede dar resultados incorrectos. Las operaciones deben ser **sin efectos secundarios** sobre variables compartidas, o usar estructuras thread-safe si realmente necesitas acumular.
+
+- **El orden de procesamiento no está garantizado.** Si necesitas un orden concreto (por ejemplo por fecha), no dependas del orden en que se procesan los elementos; si hace falta, ordena al final con `sorted()`.
+
+- **Overhead:** crear y coordinar hilos tiene coste. Si la lista es **pequeña** (pocos miles de elementos) y la operación es **muy simple** (un filter o un map trivial), `parallelStream()` puede ser **más lento** que `stream()`.
+
+- **No modificar la colección fuente** ni otras estructuras compartidas mientras se ejecuta el stream (ni con stream() ni con parallelStream()).
+
+---
+
+## 3.5 Cuándo usar parallelStream()
+
+| Conviene usar parallelStream()      | Mejor quedarse con stream()           |
+|-------------------------------------|----------------------------------------|
+| Muchos elementos (decenas/miles)    | Pocos elementos (cientos)              |
+| Operación por elemento costosa      | Operaciones muy ligeras                |
+| Sin variables externas modificables | Acumuladores externos, modificar listas |
+| Tareas independientes por elemento  | Orden estricto o dependencias entre elementos |
+
+**Regla práctica:** si dudas, **mide** con `System.nanoTime()` (o varias ejecuciones) y compara. Si no hay mejora clara, usa `stream()`.
 
 ---
 
 # Parte 4. Evaluación del costo con System.nanoTime()
 
-## 4.1 Cómo medir
+## 4.1 Qué es nanoTime()
 
-```java
-long inicio = System.nanoTime();
-// ... pipeline con stream() o parallelStream()
-long fin = System.nanoTime();
-double segundos = (fin - inicio) / 1_000_000_000.0;
-System.out.println("Tiempo: " + segundos + " s");
-```
-
-## 4.2 Comparativa stream() vs parallelStream()
-
-- Ejecutar **varias veces** (por ejemplo 5–10) y quedarse con la mediana o el promedio para suavizar picos.
-- **Calentar la JVM:** una o dos ejecuciones previas sin medir para que el JIT compile.
-- Usar **listas grandes** (p. ej. 100_000 o 1_000_000 elementos) para que el paralelismo tenga sentido.
-- Comparar **mismo pipeline** con `.stream()` y con `.parallelStream()`.
-
-**Ejemplo de estructura:**
-
-```java
-List<Venta> muchasVentas = generarVentas(500_000);
-// Calentamiento
-muchasVentas.stream().filter(v -> v.getTotal() > 50).count();
-// Medida stream
-long t1 = System.nanoTime();
-long c1 = muchasVentas.stream().filter(v -> v.getTotal() > 50).count();
-long t2 = System.nanoTime();
-// Medida parallelStream
-long t3 = System.nanoTime();
-long c2 = muchasVentas.parallelStream().filter(v -> v.getTotal() > 50).count();
-long t4 = System.nanoTime();
-System.out.println("Stream: " + (t2 - t1) / 1e6 + " ms");
-System.out.println("Parallel: " + (t4 - t3) / 1e6 + " ms");
-```
+`System.nanoTime()` devuelve un **long** con un valor en **nanosegundos** (1 nanosegundo = 0,000000001 segundos). No es un “reloj del mundo real”, sino un cronómetro para **medir intervalos**: tomas el valor antes de ejecutar el código y después; la diferencia es el tiempo (en ns) que tardó.
 
 ---
 
-# Parte 5. Herramientas para paralelizar y simplificar pipelines
+## 4.2 Cómo medir un bloque de código
 
-- **Paralelizar:** se puede pedir “reescribe este pipeline usando parallelStream() y explica cuándo compensa”. Revisar que no haya estado compartido ni modificaciones a colecciones.
-- **Simplificar:** “refactoriza este pipeline de ventas: agrupa por cliente y calcula el total por cliente” → sugerencias con `groupingBy` y `summingDouble`. Revisar que el código generado use correctamente los collectors.
-- **Estadísticas:** “dame count, sum, min, max de los totales de ventas” → `summarizingDouble`. Verificar que se use el tipo correcto (Int/Double/Long).
-- Siempre **probar** con datos reales o simulados y **medir** si la paralelización aporta mejora.
+```java
+long inicio = System.nanoTime();
+// Aquí va tu pipeline, por ejemplo:
+double suma = ventas.stream().mapToDouble(Venta::getTotal).sum();
+long fin = System.nanoTime();
+
+long nanosegundos = fin - inicio;
+double segundos = nanosegundos / 1_000_000_000.0;
+double milisegundos = nanosegundos / 1_000_000.0;
+
+System.out.println("Tiempo: " + milisegundos + " ms");
+```
+
+- **inicio** y **fin** son instantes en nanosegundos. **fin - inicio** = duración en ns.
+- Para leerlo en segundos: dividir entre 1_000_000_000.  
+  Para milisegundos: dividir entre 1_000_000.
+
+---
+
+## 4.3 Comparar stream() y parallelStream()
+
+- Ejecuta el **mismo** pipeline varias veces (por ejemplo 5) y calcula la media (o usa la mediana) para suavizar picos.
+- Opcional: una o dos ejecuciones “en caliente” sin medir, para que la JVM compile el código (JIT).
+- Usa una **lista grande** (por ejemplo 100_000 o 500_000 elementos) para que el paralelismo tenga sentido.
+- Mide por separado:
+  - con `lista.stream()...`
+  - con `lista.parallelStream()...`
+
+Ejemplo de estructura:
+
+```java
+List<Venta> muchasVentas = DatosVentas.generar(500_000);
+int repeticiones = 5;
+
+// Calentamiento (opcional)
+muchasVentas.stream().filter(v -> v.getTotal() > 50).count();
+
+long tiempoStream = 0;
+for (int i = 0; i < repeticiones; i++) {
+    long t1 = System.nanoTime();
+    muchasVentas.stream().filter(v -> v.getTotal() > 50).mapToDouble(Venta::getTotal).sum();
+    long t2 = System.nanoTime();
+    tiempoStream += (t2 - t1) / 1_000_000; // en ms
+}
+System.out.println("stream() media: " + (tiempoStream / repeticiones) + " ms");
+
+long tiempoParallel = 0;
+for (int i = 0; i < repeticiones; i++) {
+    long t1 = System.nanoTime();
+    muchasVentas.parallelStream().filter(v -> v.getTotal() > 50).mapToDouble(Venta::getTotal).sum();
+    long t2 = System.nanoTime();
+    tiempoParallel += (t2 - t1) / 1_000_000;
+}
+System.out.println("parallelStream() media: " + (tiempoParallel / repeticiones) + " ms");
+```
+
+Así ves si en tu máquina y con tus datos el paralelo realmente mejora.
+
+---
+
+# Parte 5. Sugerencias de herramientas para paralelizar y simplificar pipelines
+
+- **Paralelizar:** puedes pedir “reescribe este pipeline usando parallelStream() y dime cuándo compensa”. Revisa que no se modifiquen variables externas ni colecciones compartidas.
+- **Simplificar:** “refactoriza: agrupa por cliente y calcula el total por cliente” → suelen sugerir `groupingBy` + `summingDouble`. Comprueba que los parámetros (classifier y downstream) sean los correctos.
+- **Estadísticas:** “dame count, sum, min, max de los totales” → `summarizingDouble`. Verifica que uses el tipo correcto (Int/Double/Long) según el tipo del campo.
+- Siempre **probar** con datos reales o simulados y **medir** si la paralelización aporta mejora en tu caso.
 
 ---
 
@@ -224,96 +547,142 @@ System.out.println("Parallel: " + (t4 - t3) / 1e6 + " ms");
 
 ## 6.1 Enunciado
 
-Con una lista de **ventas** (cada venta tiene: cliente, producto, categoría del producto, cantidad, precio unitario o total), resolver:
+Tienes una lista de **ventas**. Cada venta tiene: cliente, producto, categoría del producto, cantidad, precio unitario (y puedes calcular el total como cantidad × precio unitario). Debes implementar:
 
-1. **Total por producto:** `Map<String, Double>` (nombre producto → suma de totales).
-2. **Cliente con mayor facturación:** cliente cuya suma de totales de ventas sea la máxima.
-3. **Agrupación de productos por categoría:** `Map<String, List<String>>` (categoría → lista de nombres de producto sin repetir).
+1. **Total por producto:** un mapa donde la clave es el nombre del producto y el valor es la **suma** de los totales de todas las ventas de ese producto.
+2. **Cliente con mayor facturación:** el cliente cuya **suma** de totales de todas sus ventas sea la **máxima**.
+3. **Productos por categoría:** un mapa donde la clave es la categoría y el valor es la **lista de nombres de producto** que aparecen en esa categoría **sin repetir**.
 
-## 6.2 Modelo de datos sugerido
+---
+
+## 6.2 Modelo de datos
+
+Puedes usar un record como este (los “getters” de un record se llaman como el componente: `cliente()`, `producto()`, etc.):
 
 ```java
-// Venta: cliente, producto, categoria, cantidad, precioUnitario (y getTotal() = cantidad * precioUnitario)
-record Venta(String cliente, String producto, String categoria, int cantidad, double precioUnitario) {
+public record Venta(String cliente, String producto, String categoria, int cantidad, double precioUnitario) {
     public double getTotal() {
         return cantidad * precioUnitario;
     }
 }
 ```
 
-## 6.3 Soluciones con Streams
+---
 
-**Total por producto:**
+## 6.3 Solución 1: Total por producto
+
+**Qué queremos:** `Map<String, Double>` → para cada producto, la suma de `getTotal()` de todas las ventas de ese producto.
+
+**Collector:** Agrupar por **producto** (classifier) y en cada grupo **sumar** los totales (downstream: summingDouble).
 
 ```java
 Map<String, Double> totalPorProducto = ventas.stream()
-    .collect(Collectors.groupingBy(Venta::getProducto, Collectors.summingDouble(Venta::getTotal)));
-```
-
-**Cliente con mayor facturación:**
-
-```java
-Map<String, Double> totalPorCliente = ventas.stream()
-    .collect(Collectors.groupingBy(Venta::getCliente, Collectors.summingDouble(Venta::getTotal)));
-
-String clienteMax = totalPorCliente.entrySet().stream()
-    .max(Map.Entry.comparingByValue())
-    .map(Map.Entry::getKey)
-    .orElse("N/A");
-```
-
-**Productos por categoría (nombres sin repetir):**
-
-```java
-Map<String, List<String>> productosPorCategoria = ventas.stream()
     .collect(Collectors.groupingBy(
-        Venta::getCategoria,
-        Collectors.mapping(Venta::getProducto, Collectors.toCollection(() -> new TreeSet<>(Comparator.naturalOrder())))
-    ))
-    .entrySet().stream()
-    .collect(Collectors.toMap(Map.Entry::getKey, e -> new ArrayList<>(e.getValue())));
-```
-
-Versión más simple si no importa el orden y se aceptan duplicados en la lista (luego se puede hacer distinct):
-
-```java
-Map<String, List<String>> productosPorCategoria = ventas.stream()
-    .collect(Collectors.groupingBy(
-        Venta::getCategoria,
-        Collectors.mapping(Venta::getProducto, Collectors.toList())
-    ));
-// Si se quieren sin repetir por categoría: toSet() o distinct() en un paso previo por categoría
-```
-
-Para **lista de productos únicos por categoría**:
-
-```java
-Map<String, List<String>> productosUnicosPorCategoria = ventas.stream()
-    .collect(Collectors.groupingBy(
-        Venta::getCategoria,
-        Collectors.mapping(Venta::getProducto, Collectors.collectingAndThen(Collectors.toSet(), ArrayList::new))
+        Venta::producto,                      // Clave: nombre del producto
+        Collectors.summingDouble(Venta::getTotal)  // Valor: suma de getTotal() en ese grupo
     ));
 ```
 
-## 6.4 Proyecto de apoyo
-
-En la carpeta **CH5-M1-U4-C5** está el proyecto **ventas-simuladas** con:
-
-- Modelo `Venta` (cliente, producto, categoría, cantidad, precio unitario).
-- Datos de prueba generados en memoria.
-- Clase de servicio o Main con los tres análisis anteriores (total por producto, cliente con mayor facturación, productos por categoría) y opcionalmente ejemplos con `partitioningBy` y `summarizingInt`.
-- Opcional: método que mide con `System.nanoTime()` stream vs parallelStream sobre una lista grande.
-
-Ejecutar el proyecto para ver los resultados; usar el código como referencia para agrupaciones y pipelines más complejos.
+- **groupingBy** primer parámetro: `Venta::producto` → cada venta se clasifica por su nombre de producto.
+- **groupingBy** segundo parámetro: `Collectors.summingDouble(Venta::getTotal)` → para cada grupo, se aplica getTotal() a cada venta y se suman esos doubles.
 
 ---
 
-# Resumen
+## 6.4 Solución 2: Cliente con mayor facturación
 
-- **groupingBy:** agrupar por clave (listas o con downstream: counting, summingDouble, summarizingInt).
-- **partitioningBy:** dividir en dos grupos (true/false) según un predicado.
-- **summarizingInt/Double/Long:** estadísticas (count, sum, min, max, average) en un solo paso.
-- **Pipelines en cascada:** varios filter y map; ordenar filtrando antes de transformar cuando sea posible.
-- **parallelStream():** usar con muchas datos y operaciones costosas; evitar estado compartido y listas pequeñas.
-- **Medir:** `System.nanoTime()` (o JMH) para comparar stream vs parallelStream y validar mejoras.
-- **Ejercicio ventas:** total por producto (groupingBy + summingDouble), cliente con mayor facturación (groupingBy + max por valor), productos por categoría (groupingBy + mapping a lista o set).
+**Qué queremos:** primero la suma de totales por cliente; luego el cliente cuya suma sea la mayor.
+
+**Paso 1:** Total por cliente (igual que antes pero agrupando por cliente):
+
+```java
+Map<String, Double> totalPorCliente = ventas.stream()
+    .collect(Collectors.groupingBy(
+        Venta::cliente,
+        Collectors.summingDouble(Venta::getTotal)
+    ));
+```
+
+**Paso 2:** Del mapa, tomar la entrada (clave-valor) con el valor máximo. `entrySet()` da el conjunto de parejas (cliente, total). Sobre ese stream buscamos el max comparando por valor y nos quedamos con la clave:
+
+```java
+String clienteConMayorFacturacion = totalPorCliente.entrySet().stream()
+    .max(Map.Entry.comparingByValue())   // Compara por el valor (el total)
+    .map(Map.Entry::getKey)              // Nos quedamos con la clave (nombre cliente)
+    .orElse("N/A");                      // Si el mapa estaba vacío
+```
+
+- **Map.Entry.comparingByValue()** devuelve un Comparator que ordena las entradas por su valor (el Double).  
+- **max(...)** devuelve un `Optional<Map.Entry<String, Double>>`.  
+- **map(Map.Entry::getKey)** pasa de la entrada a solo la clave (el String del cliente).  
+- **orElse("N/A")** por si no hay ninguna venta.
+
+---
+
+## 6.5 Solución 3: Productos por categoría (nombres únicos)
+
+**Qué queremos:** `Map<String, List<String>>` → categoría → lista de nombres de producto **sin repetir**.
+
+**Idea:** Agrupar por categoría. Dentro de cada grupo no queremos la lista de ventas, sino la lista de **nombres de producto** y sin duplicados. Para eso usamos **mapping**: primero transformamos cada venta en su producto (String), y luego aplicamos un collector que junta esos strings en una colección sin repetir. Un modo sencillo es usar **toSet()** y luego convertir a lista si hace falta:
+
+```java
+Map<String, List<String>> productosPorCategoria = ventas.stream()
+    .collect(Collectors.groupingBy(
+        Venta::categoria,
+        Collectors.mapping(
+            Venta::producto,
+            Collectors.collectingAndThen(Collectors.toSet(), ArrayList::new)
+        )
+    ));
+```
+
+- **groupingBy(Venta::categoria)** → agrupa por categoría.
+- **Collectors.mapping(Venta::producto, ...)** → dentro de cada grupo, transforma cada venta en su nombre de producto (String).
+- **Collectors.collectingAndThen(Collectors.toSet(), ArrayList::new)** → primero recoge esos nombres en un **Set** (sin repetir) y luego transforma ese Set en **ArrayList** (para tener List como pide el enunciado).
+
+Si te conformas con `Map<String, Set<String>>`, puedes dejar solo:
+
+```java
+Collectors.mapping(Venta::producto, Collectors.toSet())
+```
+
+y el tipo será `Map<String, Set<String>>`.
+
+---
+
+## 6.6 Proyecto de apoyo
+
+En **CH5-M1-U4-C5** está el proyecto **ventas-simuladas** con:
+
+- El record **Venta** y datos de ejemplo (**DatosVentas**).
+- **AnalisisVentasService** con los tres análisis anteriores y ejemplos de partitioningBy, summarizingInt y comparativa stream vs parallelStream.
+- **Main** que imprime todos los resultados.
+
+Puedes ejecutarlo con:
+
+```bash
+cd ventas-simuladas
+mvn compile exec:java
+```
+
+y usar el código como referencia para repasar parámetros y uso de cada collector.
+
+---
+
+# Resumen rápido
+
+- **groupingBy(classifier)** → agrupa por clave y guarda listas.  
+  **groupingBy(classifier, downstream)** → agrupa y en cada grupo aplica otro collector (counting, summingDouble, summarizingInt, etc.).  
+  Parámetros: 1) por qué agrupar, 2) qué hacer con cada grupo.
+
+- **partitioningBy(predicate)** → dos grupos: true / false.  
+  **partitioningBy(predicate, downstream)** → lo mismo pero aplicando un collector en cada grupo.
+
+- **summarizingInt(mapper)** (y Double/Long) → en una pasada obtienes count, sum, min, max, average del campo que devuelve mapper.
+
+- **Pipelines en cascada:** varios filter y map; conviene filtrar primero y luego transformar.
+
+- **parallelStream():** mismo API que stream(); usar con muchos datos y sin modificar estado compartido; medir para comprobar mejora.
+
+- **System.nanoTime():** tomar valor antes y después del código; la diferencia es el tiempo en nanosegundos; dividir entre 1_000_000 para ms.
+
+- **Ejercicio ventas:** total por producto (groupingBy + summingDouble), cliente con mayor facturación (groupingBy por cliente + max por valor en entrySet), productos por categoría (groupingBy + mapping a producto + toSet o collectingAndThen toSet → ArrayList).
