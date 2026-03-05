@@ -5,10 +5,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.bancario</groupId>
-    <artifactId>registros-bancarios-reportes</artifactId>
+    <artifactId>registros-bancarios-reportes-imperativo</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <name>Registros bancarios y reporte mensual (CH5-M1-U4-C6)</name>
+    <name>Registros bancarios - IMPERATIVO (refactorizar a Streams en clase)</name>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>

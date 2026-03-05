@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Punto de entrada: análisis guiado (flujo de datos) y taller de reporte mensual.
+ * Punto de entrada: análisis guiado y taller de reporte mensual (versión imperativa).
  */
 public class Main {
 

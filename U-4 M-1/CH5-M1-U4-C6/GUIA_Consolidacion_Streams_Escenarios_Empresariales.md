@@ -299,126 +299,58 @@ No se salta el “cómo” de la clave de agrupación (mes-año) ni el tipo de e
 
 ## 2.2 Clave de agrupación: mes y año
 
-Los movimientos tienen una **fecha** (`LocalDate`). Para agrupar por “mes” necesitamos una clave que agrupe todos los días de ese mes. En Java podemos usar:
+Los movimientos tienen una **fecha** (`LocalDate`). Para agrupar por “mes” necesitas una clave que agrupe todos los días de ese mes. En Java puedes usar:
 
 - **YearMonth** (java.time): representa un mes concreto de un año (p. ej. enero de 2024). Ideal para reportes mensuales.
 
-**Obtener YearMonth desde un movimiento:**
-
-```java
-YearMonth mes = YearMonth.from(movimiento.fecha());
-```
-
-Ese `mes` será el **classifier** de nuestro `groupingBy`: todos los movimientos del mismo mes caen en el mismo grupo.
+**Pista:** desde un movimiento puedes obtener el mes con `YearMonth.from(movimiento.fecha())`. Ese valor será la clave por la que agrupar: todos los movimientos del mismo mes deben caer en el mismo grupo.
 
 ---
 
-## 2.3 Reporte mensual: total y cantidad por mes
+## 2.3 Taller (a resolver en clase): total y cantidad por mes
 
-**Objetivo:** Un mapa donde la clave es el mes (YearMonth) y el valor es el **total** de importes de ese mes (y en otro mapa, la **cantidad** de movimientos).
+**Objetivo:** Obtener un mapa donde la clave sea el mes (YearMonth) y el valor sea el **total** de importes de ese mes. En otro mapa, la **cantidad** de movimientos por mes.
 
-```java
-Map<YearMonth, Double> totalPorMes = movimientos.stream()
-    .collect(Collectors.groupingBy(
-        m -> YearMonth.from(m.fecha()),
-        Collectors.summingDouble(MovimientoBancario::importe)
-    ));
-
-Map<YearMonth, Long> cantidadPorMes = movimientos.stream()
-    .collect(Collectors.groupingBy(
-        m -> YearMonth.from(m.fecha()),
-        Collectors.counting()
-    ));
-```
-
-- **Classifier:** `m -> YearMonth.from(m.fecha())` → cada movimiento se asigna al mes de su fecha.
-- **Downstream:** summingDouble para el total, counting para la cantidad.
-
-Si además quieres **filtrar** por rango de meses o por cuenta, aplicas `filter` antes del `collect` (igual que en la Parte 1).
+**No se muestra la solución aquí.** Debes implementarlo en el proyecto **registros-bancarios-reportes-imperativo** (versión imperativa) y luego refactorizarlo a Streams. Pistas: usar `groupingBy` con un clasificador que devuelva el mes de cada movimiento; para el total, un downstream que sume importes; para la cantidad, un downstream que cuente.
 
 ---
 
-## 2.4 Reporte mensual: estadísticas completas por mes
+## 2.4 Taller (a resolver en clase): estadísticas completas por mes
 
-Para cada mes queremos: **count, sum, min, max, average** del importe. Usamos **summarizingDouble** como downstream:
+**Objetivo:** Para cada mes, calcular **count, sum, min, max, average** del importe.
 
-```java
-Map<YearMonth, DoubleSummaryStatistics> estadisticasPorMes = movimientos.stream()
-    .collect(Collectors.groupingBy(
-        m -> YearMonth.from(m.fecha()),
-        Collectors.summarizingDouble(MovimientoBancario::importe)
-    ));
-```
-
-- **Tipo del valor:** `DoubleSummaryStatistics`. Para cada mes puedes hacer:
-  - `getCount()`, `getSum()`, `getMin()`, `getMax()`, `getAverage()`.
-
-Ejemplo de uso para imprimir el reporte:
-
-```java
-estadisticasPorMes.forEach((mes, stats) -> {
-    System.out.println("Mes " + mes + ":");
-    System.out.println("  Movimientos: " + stats.getCount());
-    System.out.println("  Total: " + stats.getSum());
-    System.out.println("  Mínimo: " + stats.getMin());
-    System.out.println("  Máximo: " + stats.getMax());
-    System.out.println("  Promedio: " + stats.getAverage());
-});
-```
+**No se muestra la solución aquí.** Pista: existe un collector que calcula todas esas estadísticas en una sola pasada sobre un campo numérico (visto en la guía C5). El tipo del valor del mapa será un objeto de estadísticas (p. ej. `DoubleSummaryStatistics`) con métodos `getCount()`, `getSum()`, `getMin()`, `getMax()`, `getAverage()`.
 
 ---
 
-## 2.5 Desglose por tipo dentro de cada mes (agrupación anidada)
+## 2.5 Taller (a resolver en clase): desglose por tipo dentro de cada mes
 
-Si quieres “por cada mes, desglose por tipo de movimiento (INGRESO, RETIRO, etc.)”, puedes:
+**Objetivo:** “Por cada mes, desglose por tipo de movimiento (INGRESO, RETIRO, etc.)”: un mapa mes → (mapa tipo → total).
 
-**Opción A — Dos niveles con groupingBy anidado:**  
-Agrupar primero por mes y dentro de cada grupo agrupar por tipo. Eso requiere un collector que agrupe otra vez:
-
-```java
-Map<YearMonth, Map<String, Double>> totalPorMesYTipo = movimientos.stream()
-    .collect(Collectors.groupingBy(
-        m -> YearMonth.from(m.fecha()),
-        Collectors.groupingBy(
-            MovimientoBancario::tipo,
-            Collectors.summingDouble(MovimientoBancario::importe)
-        )
-    ));
-```
-
-- **Resultado:** `Map<YearMonth, Map<String, Double>>`. Para un mes dado, el mapa interno te da el total por tipo.
-
-**Opción B — Primero filtrar por mes y luego agrupar por tipo:**  
-Si ya tienes un mes concreto, filtras por ese mes y agrupas por tipo en un stream aparte. Ambas opciones son válidas; la A te da todo el reporte de una vez.
+**No se muestra la solución aquí.** Pista: se puede usar un **groupingBy anidado**: primero agrupar por mes y, como downstream del grupo, otro groupingBy por tipo con suma de importes.
 
 ---
 
-## 2.6 Ordenar el reporte por mes
+## 2.6 Taller (a resolver en clase): ordenar el reporte por mes
 
-Los mapas no garantizan orden. Si quieres mostrar los meses en orden cronológico, conviertes las entradas del mapa en una lista ordenada:
+**Objetivo:** Los mapas no garantizan orden. Si quieres mostrar los meses en orden cronológico, debes convertir las entradas del mapa en una lista ordenada.
 
-```java
-List<Map.Entry<YearMonth, DoubleSummaryStatistics>> reporteOrdenado = estadisticasPorMes.entrySet().stream()
-    .sorted(Map.Entry.comparingByKey())
-    .toList();
-```
-
-`comparingByKey()` ordena por la clave (YearMonth tiene orden natural cronológico). Luego recorres `reporteOrdenado` para imprimir o generar el reporte.
+**No se muestra la solución aquí.** Pista: `entrySet().stream()` sobre el mapa, luego `sorted` con un comparador que ordene por la clave (YearMonth tiene orden natural cronológico), y recoger en lista.
 
 ---
 
-## 2.7 Resumen del taller
+## 2.7 Resumen del taller (conceptos a aplicar)
 
-- **Clave de agrupación mensual:** `YearMonth.from(movimiento.fecha())`.
-- **Totales por mes:** `groupingBy(mes, summingDouble(importe))`.
-- **Cantidad por mes:** `groupingBy(mes, counting())`.
-- **Estadísticas por mes:** `groupingBy(mes, summarizingDouble(importe))` → DoubleSummaryStatistics.
-- **Por mes y tipo:** `groupingBy(mes, groupingBy(tipo, summingDouble(importe)))`.
-- **Orden:** ordenar `entrySet().stream()` con `sorted(Map.Entry.comparingByKey())` para salida cronológica.
+Para resolver el taller en clase tendrás que usar:
 
-Con esto tienes un sistema de reporte mensual completo con agrupación por fechas y cálculos estadísticos, sin saltar ningún aspecto clave.
+- **Clave de agrupación mensual:** obtener el mes de cada movimiento (p. ej. con `YearMonth.from(...)`).
+- **Totales por mes:** agrupar por esa clave y en cada grupo sumar el importe.
+- **Cantidad por mes:** agrupar por esa clave y en cada grupo contar elementos.
+- **Estadísticas por mes:** agrupar por esa clave y en cada grupo usar un collector de estadísticas (count, sum, min, max, average) sobre el importe.
+- **Por mes y tipo:** agrupación en dos niveles (mes → tipo → total).
+- **Orden:** ordenar las entradas del mapa por clave para salida cronológica.
 
-**Proyecto de apoyo:** en el mismo proyecto **registros-bancarios-reportes**, la clase **ReporteMensualService** implementa total por mes, cantidad por mes, estadísticas por mes, total por mes y tipo, y reporte ordenado por mes. El `Main` imprime estos resultados.
+El proyecto **registros-bancarios-reportes-imperativo** contiene la misma funcionalidad implementada con **programación imperativa** (bucles, mapas manuales). Tu tarea es refactorizar ese código a Streams en clase. El proyecto **registros-bancarios-reportes** (con Streams) queda como referencia una vez resuelto el taller.
 
 ---
 
