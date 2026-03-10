@@ -3,12 +3,8 @@ package com.bancario;
 import com.bancario.model.MovimientoBancario;
 
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.DoubleSummaryStatistics;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Taller: reporte mensual con agrupación por mes y estadísticas (Parte 2).
@@ -20,24 +16,34 @@ public class ReporteMensualService {
      * Total de importes por mes (YearMonth).
      */
     public Map<YearMonth, Double> totalPorMes(List<MovimientoBancario> movimientos) {
-        Map<YearMonth, Double> totalPorMes = new HashMap<>();
-        for (MovimientoBancario m : movimientos) {
-            YearMonth mes = YearMonth.from(m.fecha());
-            totalPorMes.merge(mes, m.importe(), Double::sum);
-        }
-        return totalPorMes;
+        return movimientos.stream()
+                .collect(Collectors.groupingBy(m -> YearMonth.from(m.fecha()),
+                        Collectors.summingDouble(MovimientoBancario::importe)));
+//        Total por mes:
+//        2024-02: 950.0
+//        2024-01: 700.0
+//        Map<YearMonth, Double> totalPorMes = new HashMap<>();
+//        for (MovimientoBancario m : movimientos) {
+//            YearMonth mes = YearMonth.from(m.fecha());
+//            totalPorMes.merge(mes, m.importe(), Double::sum);
+//        }
+//        return totalPorMes;
     }
 
     /**
      * Cantidad de movimientos por mes.
      */
     public Map<YearMonth, Long> cantidadPorMes(List<MovimientoBancario> movimientos) {
-        Map<YearMonth, Long> cantidadPorMes = new HashMap<>();
-        for (MovimientoBancario m : movimientos) {
-            YearMonth mes = YearMonth.from(m.fecha());
-            cantidadPorMes.merge(mes, 1L, Long::sum);
-        }
-        return cantidadPorMes;
+
+        return movimientos.stream()
+                .collect(Collectors.groupingBy(m -> YearMonth.from(m.fecha()), Collectors.counting()));
+//        {2024-02=2, 2024-01=3}
+//        Map<YearMonth, Long> cantidadPorMes = new HashMap<>();
+//        for (MovimientoBancario m : movimientos) {
+//            YearMonth mes = YearMonth.from(m.fecha());
+//            cantidadPorMes.merge(mes, 1L, Long::sum);
+//        }
+//        return cantidadPorMes;
     }
 
     /**
